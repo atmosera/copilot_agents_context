@@ -1,0 +1,230 @@
+name: GitHub Copilot Environment Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.12'
+      source-directory:
+        description: 'Source directory for Python application'
+        required: false
+        type: string
+        default: './python_skills_app'
+      include-azure-tools:
+        description: 'Include Azure CLI and Terraform setup'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  PYTHON_VERSION: ${{ inputs.python-version || '3.12' }}
+  SOURCE_DIR: ${{ inputs.source-directory || './python_skills_app' }}
+  FLASK_APP: app.py
+  FLASK_ENV: development
+
+jobs:
+  setup-copilot-environment:
+    name: Setup GitHub Copilot Development Environment
+    runs-on: ubuntu-24.04
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '${{ env.SOURCE_DIR }}/requirements.txt'
+
+      - name: Create Python Virtual Environment
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          echo "Creating Python virtual environment..."
+          python -m venv copilot-env
+          source copilot-env/bin/activate
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+          echo "✓ Virtual environment created successfully"
+
+      - name: Install Python Dependencies
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          echo "Installing Python dependencies..."
+          source copilot-env/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          echo "✓ Python dependencies installed successfully"
+
+      - name: Install Development and Testing Dependencies
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          echo "Installing development dependencies..."
+          source copilot-env/bin/activate
+          pip install pytest pytest-cov black flake8 mypy bandit safety
+          echo "✓ Development dependencies installed successfully"
+
+      - name: Setup Azure CLI
+        if: ${{ inputs.include-azure-tools }}
+        run: |
+          echo "Installing Azure CLI..."
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az version
+          echo "✓ Azure CLI installed successfully"
+
+      - name: Install Terraform
+        if: ${{ inputs.include-azure-tools }}
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: '1.11.4'
+          terraform_wrapper: false
+
+      - name: Create Project Data Directories
+        run: |
+          echo "Creating project data directories..."
+          mkdir -p data logs temp
+          chmod 755 data logs temp
+          echo "✓ Project directories created successfully"
+
+      - name: Setup Environment Configuration
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          echo "Setting up environment configuration..."
+          if [ -f .env.template ]; then
+            cp .env.template .env
+            echo "✓ Environment template copied"
+          else
+            echo "# Environment variables for local development" > .env
+            echo "✓ Environment file created"
+          fi
+          
+          # Add development environment variables
+          echo "LOCAL_DATA_PATH=../data" >> .env
+          echo "FLASK_ENV=development" >> .env
+          echo "FLASK_DEBUG=true" >> .env
+          echo "LOG_LEVEL=DEBUG" >> .env
+          echo "✓ Environment variables configured"
+
+      - name: Initialize Flask Application
+        working-directory: ${{ env.SOURCE_DIR }}
+        run: |
+          echo "Initializing Flask application..."
+          source copilot-env/bin/activate
+          export FLASK_APP=${{ env.FLASK_APP }}
+          export FLASK_ENV=${{ env.FLASK_ENV }}
+          
+          if flask --version > /dev/null 2>&1; then
+            echo "✓ Flask application initialized successfully"
+            flask --version
+          else
+            echo "⚠ Flask initialization check skipped"
+          fi
+
+      - name: Run Security Checks
+        working-directory: ${{ env.SOURCE_DIR }}
+        continue-on-error: true
+        run: |
+          echo "Running security checks..."
+          source copilot-env/bin/activate
+          
+          echo "Running bandit security scan..."
+          bandit -r . -f json -o ../logs/bandit-report.json || echo "⚠ Bandit scan completed with warnings"
+          
+          echo "Running safety dependency check..."
+          safety check --json --output ../logs/safety-report.json || echo "⚠ Safety check completed with warnings"
+          
+          echo "✓ Security checks completed"
+
+      - name: Run Code Quality Checks
+        working-directory: ${{ env.SOURCE_DIR }}
+        continue-on-error: true
+        run: |
+          echo "Running code quality checks..."
+          source copilot-env/bin/activate
+          
+          echo "Running Black formatter check..."
+          black --check --diff . > ../logs/black-report.txt 2>&1 || echo "⚠ Black formatting check completed"
+          
+          echo "Running Flake8 linting..."
+          flake8 . --output-file=../logs/flake8-report.txt || echo "⚠ Flake8 linting completed"
+          
+          echo "Running MyPy type checking..."
+          mypy . > ../logs/mypy-report.txt 2>&1 || echo "⚠ MyPy type checking completed"
+          
+          echo "✓ Code quality checks completed"
+
+      - name: Run Unit Tests
+        working-directory: ${{ env.SOURCE_DIR }}
+        continue-on-error: true
+        run: |
+          echo "Running unit tests..."
+          source copilot-env/bin/activate
+          
+          if [ -d tests ] || find . -name "test_*.py" | grep -q .; then
+            python -m pytest --cov=./ --cov-report=xml --cov-report=html --cov-report=term \
+              --junitxml=../logs/junit.xml || echo "⚠ Tests completed with issues"
+            echo "✓ Unit tests executed"
+          else
+            echo "⚠ No tests found to execute"
+          fi
+
+      - name: Validate Project Structure
+        run: |
+          echo "Validating Atmosera Skills Matrix project structure..."
+          
+          # Core application files
+          test -f ${{ env.SOURCE_DIR }}/app.py && echo "✓ Flask app entry point found" || echo "⚠ Flask app entry point missing"
+          test -f ${{ env.SOURCE_DIR }}/requirements.txt && echo "✓ Requirements file found" || echo "⚠ Requirements file missing"
+          
+          # Application structure
+          test -d ${{ env.SOURCE_DIR }}/skills_web_app && echo "✓ Main application package found" || echo "⚠ Main application package missing"
+          test -d ${{ env.SOURCE_DIR }}/skills_web_app/controller && echo "✓ Controller package found" || echo "⚠ Controller package missing"
+          test -d ${{ env.SOURCE_DIR }}/skills_web_app/controller/templates && echo "✓ Templates directory found" || echo "⚠ Templates directory missing"
+          test -d ${{ env.SOURCE_DIR }}/skills_web_app/controller/static && echo "✓ Static files directory found" || echo "⚠ Static files directory missing"
+          
+          # Infrastructure files
+          test -d iac && echo "✓ Infrastructure as Code directory found" || echo "⚠ IaC directory missing"
+          test -f .gitignore && echo "✓ Git ignore file found" || echo "⚠ Git ignore file missing"
+          
+          echo "✓ Project structure validation completed"
+
+      - name: Generate Environment Summary
+        run: |
+          echo "GitHub Copilot Environment Setup Summary"
+          echo "========================================"
+          echo "Python Version: ${{ env.PYTHON_VERSION }}"
+          echo "Source Directory: ${{ env.SOURCE_DIR }}"
+          echo "Flask App: ${{ env.FLASK_APP }}"
+          echo "Environment: ${{ env.FLASK_ENV }}"
+          echo ""
+          echo "Setup Status:"
+          echo "- ✓ Python environment configured"
+          echo "- ✓ Dependencies installed"
+          echo "- ✓ Development tools ready"
+          if [ "${{ inputs.include-azure-tools }}" = "true" ]; then
+            echo "- ✓ Azure tools configured"
+          fi
+          echo "- ✓ Project structure validated"
+          echo ""
+          echo "Next Steps for GitHub Copilot:"
+          echo "1. Open the project in VS Code"
+          echo "2. Activate the Python virtual environment: source ${{ env.SOURCE_DIR }}/copilot-env/bin/activate"
+          echo "3. Install GitHub Copilot extension if not already installed"
+          echo "4. Configure Copilot with project context using .github/copilot-instructions.md"
+          echo "5. Start developing with AI-powered assistance!"
+
+      - name: Upload Setup Logs
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        if: always()
+        with:
+          name: copilot-setup-logs-${{ github.run_number }}
+          path: |
+            logs/
+            ${{ env.SOURCE_DIR }}/copilot-env/
+          retention-days: 7

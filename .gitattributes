@@ -1,0 +1,5 @@
+*.md    text
+*.yml   text
+*.sh    text eol=lf
+*.py    text eol=lf
+.env.*  text eol=lf
