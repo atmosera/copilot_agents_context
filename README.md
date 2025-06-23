@@ -21,8 +21,6 @@ copilot_agents_context/
 │   ├── personal_style.md         # Customizing AI output to match coding preferences
 │   ├── prompt-templates.md       # Reusable prompt templates for common tasks
 │   └── team_collaboration.md     # Standards and practices for team AI adoption
-├── presentations/          # Webinar and presentation materials
-│   └── github_copilot_agents_context_webinar.md
 └── README.md              # This file
 ```
 
@@ -102,16 +100,6 @@ Complex implementation patterns and real-world scenarios:
 - **Testing Strategies**: Comprehensive testing approaches
 - **DevOps Integration**: Infrastructure as code and CI/CD patterns
 
-### Presentation Materials
-
-#### 📊 [Webinar Presentation](presentations/github_copilot_agents_context_webinar.md)
-Complete webinar content covering:
-- GitHub Copilot agents overview and capabilities
-- Context management strategies and techniques
-- Practical implementation examples
-- Team adoption best practices
-- Advanced usage patterns and optimization
-
 ## 🎯 Quick Start Guide
 
 ### For Individual Developers
@@ -147,45 +135,6 @@ Each documentation file includes practical examples for:
 - **JavaScript/TypeScript**: Modern web development and Node.js applications
 - **Infrastructure as Code**: Terraform, Docker, and cloud deployment
 - **DevOps Patterns**: CI/CD pipelines and automation
-
-## ⚙️ GitHub Integration
-
-### Automated Development Environment
-
-The repository includes a comprehensive [GitHub Actions workflow](.github/workflows/copilot-setup-steps.yml) that automatically sets up development environments with:
-
-- **Python 3.12+ Environment**: Virtual environment with Flask and development dependencies
-- **Code Quality Tools**: Black formatting, Flake8 linting, MyPy type checking
-- **Security Analysis**: Bandit security scanning and Safety dependency checking
-- **Testing Framework**: Pytest with coverage reporting and JUnit XML output
-- **Azure Development Tools**: Azure CLI and Terraform (optional)
-- **Project Structure Validation**: Automated verification of project organization
-
-### GitHub Copilot Configuration
-
-The [`.github/copilot-instructions.md`](.github/copilot-instructions.md) file provides:
-
-- **Coding Standards**: Language-specific best practices and conventions
-- **Architecture Patterns**: Azure integration, authentication, and security guidelines
-- **Development Workflows**: Error handling, logging, and testing approaches
-- **Infrastructure Guidelines**: Terraform patterns and CI/CD best practices
-
-To use these standards with GitHub Copilot:
-1. The instructions are automatically loaded when GitHub Copilot is used in this repository
-2. All generated code will follow the established patterns and conventions
-3. Team members get consistent AI assistance aligned with project standards
-
-## 🎥 Webinar Content
-
-The [webinar presentation](presentations/github_copilot_agents_context_webinar.md) covers:
-
-- **Introduction to GitHub Copilot Agents**: Understanding capabilities and limitations
-- **Context Management Fundamentals**: Building effective context for AI assistance
-- **Practical Implementation**: Real-world examples and use cases
-- **Team Adoption Strategies**: Rolling out AI assistance across development teams
-- **Advanced Techniques**: Complex prompting and context building patterns
-- **Best Practices**: Avoiding common pitfalls and maximizing effectiveness
-
 
 ## 📄 License
 
